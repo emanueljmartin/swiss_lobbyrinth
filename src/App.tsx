@@ -1,6 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
 import { supabase } from './lib/supabase';
 import InfluenceRankingsView from './views/InfluenceRankings';
+import ConflictDashboardView from './views/ConflictDashboard';
+import CareerTimelineView from './views/CareerTimeline';
 
 // Modal System
 interface ModalData {
@@ -161,7 +163,7 @@ interface CommitteeMembership {
   role: string;
 }
 
-type ViewType = 'dashboard' | 'politicians' | 'profile' | 'network' | 'sectors' | 'votes' | 'search' | 'compare' | 'conflicts' | 'analytics' | 'map' | 'organizations' | 'parties' | 'committees' | 'influence';
+type ViewType = 'dashboard' | 'politicians' | 'profile' | 'network' | 'sectors' | 'votes' | 'search' | 'compare' | 'conflicts' | 'analytics' | 'map' | 'organizations' | 'parties' | 'committees' | 'influence' | 'risk-dashboard';
 
 // Statistics helper
 function calculatePartyLoyalty(party: string, voteRecords: VoteRecord[], politicians: Politician[]): number {
@@ -228,6 +230,7 @@ export default function App() {
         {activeView === 'analytics' && <AnalyticsView onShowDetail={showDetail} />}
         {activeView === 'map' && <CantonalMapView onSelect={(id) => navigate('profile', id)} onShowDetail={showDetail} />}
         {activeView === 'influence' && <InfluenceRankingsView />}
+        {activeView === 'risk-dashboard' && <ConflictDashboardView />}
       </main>
       <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} data={modalData} />
     </div>
@@ -241,6 +244,7 @@ function Sidebar({ activeView, navigate }: { activeView: ViewType; navigate: (v:
     { id: 'dashboard', label: 'Dashboard', icon: '📊' },
     { id: 'politicians', label: 'Politicians', icon: '👥' },
     { id: 'influence', label: 'Influence Rankings', icon: '🏆' },
+    { id: 'risk-dashboard', label: 'Conflict Detector', icon: '🛡️' },
     { id: 'network', label: 'Network Graph', icon: '🔗' },
     { id: 'map', label: 'Cantonal Map', icon: '🗺️' },
     { id: 'sectors', label: 'Sector Analysis', icon: '🏭' },
