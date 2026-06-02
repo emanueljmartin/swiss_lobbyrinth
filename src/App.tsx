@@ -3,6 +3,9 @@ import { supabase } from './lib/supabase';
 import InfluenceRankingsView from './views/InfluenceRankings';
 import ConflictDashboardView from './views/ConflictDashboard';
 import CareerTimelineView from './views/CareerTimeline';
+import MonitoringDashboardView from './views/MonitoringDashboard';
+import NetworkAnalysisView from './views/NetworkAnalysis';
+import PolicyTimelineView from './views/PolicyTimeline';
 
 // Modal System
 interface ModalData {
@@ -163,7 +166,7 @@ interface CommitteeMembership {
   role: string;
 }
 
-type ViewType = 'dashboard' | 'politicians' | 'profile' | 'network' | 'sectors' | 'votes' | 'search' | 'compare' | 'conflicts' | 'analytics' | 'map' | 'organizations' | 'parties' | 'committees' | 'influence' | 'risk-dashboard';
+type ViewType = 'dashboard' | 'politicians' | 'profile' | 'network' | 'sectors' | 'votes' | 'search' | 'compare' | 'conflicts' | 'analytics' | 'map' | 'organizations' | 'parties' | 'committees' | 'influence' | 'risk-dashboard' | 'monitoring' | 'network-analysis' | 'policy-timeline';
 
 // Statistics helper
 function calculatePartyLoyalty(party: string, voteRecords: VoteRecord[], politicians: Politician[]): number {
@@ -231,6 +234,9 @@ export default function App() {
         {activeView === 'map' && <CantonalMapView onSelect={(id) => navigate('profile', id)} onShowDetail={showDetail} />}
         {activeView === 'influence' && <InfluenceRankingsView />}
         {activeView === 'risk-dashboard' && <ConflictDashboardView />}
+        {activeView === 'monitoring' && <MonitoringDashboardView />}
+        {activeView === 'network-analysis' && <NetworkAnalysisView />}
+        {activeView === 'policy-timeline' && <PolicyTimelineView />}
       </main>
       <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} data={modalData} />
     </div>
@@ -245,6 +251,9 @@ function Sidebar({ activeView, navigate }: { activeView: ViewType; navigate: (v:
     { id: 'politicians', label: 'Politicians', icon: '👥' },
     { id: 'influence', label: 'Influence Rankings', icon: '🏆' },
     { id: 'risk-dashboard', label: 'Conflict Detector', icon: '🛡️' },
+    { id: 'monitoring', label: 'Monitoring Alerts', icon: '📡' },
+    { id: 'network-analysis', label: 'Network Analysis', icon: '🕸️' },
+    { id: 'policy-timeline', label: 'Policy Timeline', icon: '📜' },
     { id: 'network', label: 'Network Graph', icon: '🔗' },
     { id: 'map', label: 'Cantonal Map', icon: '🗺️' },
     { id: 'sectors', label: 'Sector Analysis', icon: '🏭' },
