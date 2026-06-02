@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { BarChart3, Users, ArrowRight } from 'lucide-react';
 import { fetchPoliticians, fetchAllMandates, computeSectorExposure, computePartyStats, fetchIndustrySectors } from '../lib/queries';
 import type { Politician, Mandate, SectorExposure, PartyMandateStats, IndustrySector } from '../types';
-import { SectorChart } from '../components/SectorChart';
 import { PartyBadge } from '../components/Badge';
 import type { ViewType, PartyAffiliation } from '../types';
 

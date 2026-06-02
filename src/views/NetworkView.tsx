@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Layers, Info } from 'lucide-react';
-import { fetchPoliticians, fetchAllMandates, fetchAllCommittees, fetchCommitteeMembershipsWithPolitician } from '../lib/queries';
+import { fetchPoliticians, fetchAllMandates, fetchCommitteeMembershipsWithPolitician } from '../lib/queries';
 import type { GraphData, GraphNode, GraphEdge, Politician, Mandate, CommitteeMembership } from '../types';
 import { NetworkGraph } from '../components/NetworkGraph';
 import type { ViewType } from '../types';

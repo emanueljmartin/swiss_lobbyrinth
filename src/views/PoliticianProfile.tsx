@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ArrowLeft, Building2, Users, Vote, Network, ExternalLink, Info, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { ArrowLeft, Building2, Users, Vote, ExternalLink, Info, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { fetchFullPoliticianProfile } from '../lib/queries';
 import type { PoliticianProfile as Profile } from '../types';
 import { PartyBadge, ConfidenceBadge, VoteBadge, MandateTypeBadge, SectorBadge } from '../components/Badge';

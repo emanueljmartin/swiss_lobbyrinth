@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Search, Filter, ArrowUpDown, ChevronRight } from 'lucide-react';
-import { fetchPoliticians, fetchAllMandates, fetchAllCommittees, fetchCommitteeMembershipsWithPolitician } from '../lib/queries';
-import type { Politician, Mandate, Chamber, PartyAffiliation } from '../types';
+import { fetchPoliticians } from '../lib/queries';
+import type { Politician, Mandate, PartyAffiliation } from '../types';
 import { PartyBadge, SectorBadge } from '../components/Badge';
 import type { ViewType } from '../types';
 
@@ -24,9 +24,9 @@ export function Politicians({ onNavigate }: PoliticiansProps) {
   useEffect(() => {
     (async () => {
       try {
-        const [pols, mands] = await Promise.all([fetchPoliticians(), fetchAllMandates()]);
+        const pols = await fetchPoliticians();
         setPoliticians(pols);
-        setMandates(mands);
+        setMandates([]);
       } finally {
         setLoading(false);
       }

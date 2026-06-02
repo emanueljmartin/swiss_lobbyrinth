@@ -1,5 +1,5 @@
 import {
-  LayoutDashboard, Network, Users, BarChart3, HelpingHand,
+  LayoutDashboard, Network, Users, BarChart3,
   Vote, Search, Database, ChevronRight, Shield
 } from 'lucide-react';
 import type { ViewType } from '../types';

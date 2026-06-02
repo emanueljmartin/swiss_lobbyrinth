@@ -1,11 +1,53 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, Component, ReactNode } from 'react';
 import { supabase } from './lib/supabase';
 import InfluenceRankingsView from './views/InfluenceRankings';
 import ConflictDashboardView from './views/ConflictDashboard';
-import CareerTimelineView from './views/CareerTimeline';
 import MonitoringDashboardView from './views/MonitoringDashboard';
 import NetworkAnalysisView from './views/NetworkAnalysis';
 import PolicyTimelineView from './views/PolicyTimeline';
+
+// Error Boundary Component
+class ErrorBoundary extends Component<
+  { children: ReactNode },
+  { hasError: boolean; error: Error | null }
+> {
+  constructor(props: { children: ReactNode }) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error) {
+    console.error('Uncaught error:', error);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="flex items-center justify-center h-screen bg-slate-950 text-white">
+          <div className="max-w-md p-6 bg-slate-900 border border-red-700 rounded-lg">
+            <h1 className="text-xl font-bold text-red-400 mb-2">Error</h1>
+            <p className="text-sm text-slate-400 mb-4">An unexpected error occurred.</p>
+            <pre className="text-xs bg-slate-950 p-2 rounded mb-4 overflow-auto max-h-40 text-red-300">
+              {this.state.error?.message}
+            </pre>
+            <button
+              onClick={() => window.location.reload()}
+              className="w-full px-4 py-2 bg-blue-600 rounded hover:bg-blue-700 transition"
+            >
+              Reload Page
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
 
 // Modal System
 interface ModalData {
@@ -50,7 +92,7 @@ function Modal({ isOpen, onClose, data }: { isOpen: boolean; onClose: () => void
           {/* Source Badge */}
           {data.source && (
             <div className="flex items-center gap-2 mb-4 text-sm">
-              <span className="px-2 py-1 bg-blue-900/50 text-blue-300 rounded">Source: {data.source}</span>
+              <span className="px-2 py-1 bg-slate-800 text-slate-400 rounded">Data: {data.source}</span>
               {data.relatedCount !== undefined && (
                 <span className="px-2 py-1 bg-slate-800 text-slate-400 rounded">
                   {data.relatedCount} related records
@@ -86,7 +128,7 @@ function Modal({ isOpen, onClose, data }: { isOpen: boolean; onClose: () => void
         {/* Footer */}
         <div className="p-4 border-t border-slate-800 flex justify-between items-center bg-slate-950/50">
           <div className="text-xs text-slate-500">
-            Data retrieved from Swiss Parliament transparency database
+            Research preview
           </div>
           <div className="flex gap-2">
             <button
@@ -160,12 +202,6 @@ interface Committee {
   policy_area: string;
 }
 
-interface CommitteeMembership {
-  politician_id: string;
-  committee_id: string;
-  role: string;
-}
-
 type ViewType = 'dashboard' | 'politicians' | 'profile' | 'network' | 'sectors' | 'votes' | 'search' | 'compare' | 'conflicts' | 'analytics' | 'map' | 'organizations' | 'parties' | 'committees' | 'influence' | 'risk-dashboard' | 'monitoring' | 'network-analysis' | 'policy-timeline';
 
 // Statistics helper
@@ -198,6 +234,14 @@ function calculatePartyLoyalty(party: string, voteRecords: VoteRecord[], politic
 }
 
 export default function App() {
+  return (
+    <ErrorBoundary>
+      <AppContent />
+    </ErrorBoundary>
+  );
+}
+
+function AppContent() {
   const [activeView, setActiveView] = useState<ViewType>('dashboard');
   const [selectedPoliticianId, setSelectedPoliticianId] = useState<string | null>(null);
   const [compareIds, setCompareIds] = useState<string[]>([]);
@@ -215,23 +259,30 @@ export default function App() {
   };
 
   return (
-    <div className="flex h-screen bg-slate-950 text-white">
-      <Sidebar activeView={activeView} navigate={navigate} />
-      <main className="flex-1 overflow-auto">
+    <div className="flex h-screen bg-slate-950 text-white flex-col">
+      {/* Synthetic Data Warning Banner */}
+      <div className="bg-amber-950 border-b border-amber-700 px-4 py-2">
+        <div className="text-xs text-amber-200 font-medium">
+          ⚠️ Research Preview: This application uses synthetic/prototype data for demonstration purposes only. Data does not represent actual Swiss parliamentary records.
+        </div>
+      </div>
+      <div className="flex flex-1 overflow-auto">
+        <Sidebar activeView={activeView} navigate={navigate} />
+        <main className="flex-1 overflow-auto">
         {activeView === 'dashboard' && <DashboardView onNavigate={navigate} onShowDetail={showDetail} />}
-        {activeView === 'politicians' && <PoliticiansView onSelect={(id) => navigate('profile', id)} onShowDetail={showDetail} />}
+        {activeView === 'politicians' && <PoliticiansView />}
         {activeView === 'profile' && selectedPoliticianId && <ProfileView politicianId={selectedPoliticianId} onShowDetail={showDetail} />}
         {activeView === 'network' && <NetworkGraphView onShowDetail={showDetail} />}
         {activeView === 'sectors' && <SectorsView onShowDetail={showDetail} />}
         {activeView === 'votes' && <VotesView onShowDetail={showDetail} />}
-        {activeView === 'search' && <SearchView onSelect={(id) => navigate('profile', id)} />}
-        {activeView === 'organizations' && <OrganizationsView onShowDetail={showDetail} />}
-        {activeView === 'parties' && <PartiesView onShowDetail={showDetail} />}
-        {activeView === 'committees' && <CommitteesView onShowDetail={showDetail} />}
+        {activeView === 'search' && <SearchView />}
+        {activeView === 'organizations' && <OrganizationsView />}
+        {activeView === 'parties' && <PartiesView />}
+        {activeView === 'committees' && <CommitteesView />}
         {activeView === 'compare' && <CompareView compareIds={compareIds} setCompareIds={setCompareIds} />}
-        {activeView === 'conflicts' && <ConflictsView onShowDetail={showDetail} />}
-        {activeView === 'analytics' && <AnalyticsView onShowDetail={showDetail} />}
-        {activeView === 'map' && <CantonalMapView onSelect={(id) => navigate('profile', id)} onShowDetail={showDetail} />}
+        {activeView === 'conflicts' && <ConflictsView />}
+        {activeView === 'analytics' && <AnalyticsView />}
+        {activeView === 'map' && <CantonalMapView onSelect={(id) => navigate('profile', id)} />}
         {activeView === 'influence' && <InfluenceRankingsView />}
         {activeView === 'risk-dashboard' && <ConflictDashboardView />}
         {activeView === 'monitoring' && <MonitoringDashboardView />}
@@ -239,6 +290,7 @@ export default function App() {
         {activeView === 'policy-timeline' && <PolicyTimelineView />}
       </main>
       <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} data={modalData} />
+      </div>
     </div>
   );
 }
@@ -340,9 +392,8 @@ function Sidebar({ activeView, navigate }: { activeView: ViewType; navigate: (v:
         </div>
       </nav>
       <div className="p-3 border-t border-slate-800 text-xs text-slate-600">
-        <div className="font-medium mb-1">Data Sources</div>
-        <div>Official Swiss Parliament</div>
-        <div>Handelsregister</div>
+        <div className="font-medium mb-1">Research Status</div>
+        <div>Prototype dataset</div>
       </div>
     </aside>
   );
@@ -694,7 +745,7 @@ function StatCard({ title, value, color }: { title: string; value: number; color
   );
 }
 
-function PoliticiansView({ onSelect, onShowDetail }: { onSelect: (id: string) => void; onShowDetail: (data: ModalData) => void }) {
+function PoliticiansView() {
   const [politicians, setPoliticians] = useState<Politician[]>([]);
   const [mandateCounts, setMandateCounts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
@@ -879,29 +930,7 @@ function PoliticiansView({ onSelect, onShowDetail }: { onSelect: (id: string) =>
         {sorted.map(p => (
           <div
             key={p.id}
-            onClick={() => onShowDetail({
-              type: 'politician',
-              title: p.full_name,
-              source: `politicians id: ${p.id}`,
-              relatedCount: mandateCounts[p.id],
-              data: p,
-              details: [
-                { label: 'ID', value: p.id.slice(0, 8) },
-                { label: 'Party', value: p.party },
-                { label: 'Chamber', value: p.chamber },
-                { label: 'Canton', value: p.canton },
-                { label: 'Gender', value: p.gender || 'N/A' },
-                { label: 'Birth Year', value: p.birth_year || 'N/A' },
-                { label: 'Mandates', value: mandateCounts[p.id] || 0 },
-              ],
-              children: p.bio_summary && (
-                <div className="mt-4 p-3 bg-slate-800 rounded-lg">
-                  <div className="text-xs text-slate-500 mb-1">Bio</div>
-                  <p className="text-sm">{p.bio_summary}</p>
-                </div>
-              )
-            })}
-            className="p-4 bg-slate-900 border border-slate-800 rounded-xl cursor-pointer hover:border-blue-700 hover:shadow-lg transition-all"
+            className="p-4 bg-slate-900 border border-slate-800 rounded-xl"
           >
             <div className="flex items-start justify-between mb-2">
               <div>
@@ -925,7 +954,7 @@ function PoliticiansView({ onSelect, onShowDetail }: { onSelect: (id: string) =>
   );
 }
 
-function ProfileView({ politicianId, onShowDetail }: { politicianId: string; onShowDetail: (data: ModalData) => void }) {
+function ProfileView({ politicianId }: { politicianId: string; onShowDetail: (data: ModalData) => void }) {
   const [data, setData] = useState<{
     politician: Politician | null;
     mandates: Mandate[];
@@ -983,7 +1012,7 @@ function ProfileView({ politicianId, onShowDetail }: { politicianId: string; onS
           <div className="flex-1">
             <h1 className="text-3xl font-bold">{data.politician.full_name}</h1>
             <div className="flex items-center gap-3 mt-2">
-              <span className="px-3 py-1 bg-slate-800 rounded-lg text-sm font-medium">{data.politican.party}</span>
+              <span className="px-3 py-1 bg-slate-800 rounded-lg text-sm font-medium">{data.politician.party}</span>
               <span className="text-slate-400">{data.politician.chamber}</span>
               <span className="text-slate-400">Canton {data.politician.canton}</span>
             </div>
@@ -1236,7 +1265,7 @@ function NetworkGraphView({ onShowDetail }: { onShowDetail: (data: ModalData) =>
   );
 }
 
-function ConflictsView({ onShowDetail }: { onShowDetail: (data: ModalData) => void }) {
+function ConflictsView() {
   const [conflicts, setConflicts] = useState<{
     politician: Politician;
     sector: string;
@@ -1312,48 +1341,7 @@ function ConflictsView({ onShowDetail }: { onShowDetail: (data: ModalData) => vo
           {conflicts.map((c, i) => (
             <div
               key={i}
-              onClick={() => onShowDetail({
-                type: 'conflict',
-                title: `Conflict: ${c.politician.full_name}`,
-                source: `Cross-reference: mandates + vote_records`,
-                relatedCount: 2,
-                data: {
-                  politician: c.politician,
-                  mandate: c.mandate,
-                  vote_record: c.voteRecord,
-                },
-                details: [
-                  { label: 'Politician ID', value: c.politician.id.slice(0, 8) },
-                  { label: 'Party', value: c.politician.party },
-                  { label: 'Chamber', value: c.politician.chamber },
-                  { label: 'Mandate Org', value: c.org },
-                  { label: 'Mandate Sector', value: c.sector },
-                  { label: 'Mandate Role', value: c.mandate.role_title },
-                  { label: 'Paid?', value: c.mandate.is_paid ? 'Yes' : 'No' },
-                  { label: 'Vote Topic', value: c.votetitle },
-                  { label: 'Vote Result', value: c.voteRecord.vote_result },
-                ],
-                children: (
-                  <div className="mt-4 space-y-3">
-                    <div className="p-3 bg-amber-900/20 border border-amber-700/50 rounded-lg">
-                      <div className="text-xs text-amber-400 uppercase tracking-wider mb-2">How This Conflict Was Detected</div>
-                      <p className="text-sm text-slate-300">
-                        Politician <b>{c.politician.full_name}</b> voted <b>{c.voteRecord.vote_result}</b> on <b>{c.votetitle}</b> (policy area: <b>{c.sector}</b>)
-                        while holding a mandate at <b>{c.org}</b> in the same sector. This creates a potential conflict of interest.
-                      </p>
-                    </div>
-                    <div className="p-3 bg-slate-800 rounded-lg">
-                      <div className="text-xs text-slate-500 mb-2">Recommendations</div>
-                      <ul className="text-sm space-y-1 text-slate-400">
-                        <li>• Should have recused from this vote</li>
-                        <li>• Declare conflict publicly before vote</li>
-                        <li>• Review similar past votes</li>
-                      </ul>
-                    </div>
-                  </div>
-                ),
-              })}
-              className="bg-slate-900 border border-slate-800 rounded-xl p-4 flex items-center justify-between cursor-pointer hover:bg-slate-800 hover:border-amber-700 transition"
+              className="bg-slate-900 border border-slate-800 rounded-xl p-4 flex items-center justify-between"
             >
               <div>
                 <div className="font-medium">{c.politician.full_name} ({c.politician.party})</div>
@@ -1371,7 +1359,7 @@ function ConflictsView({ onShowDetail }: { onShowDetail: (data: ModalData) => vo
   );
 }
 
-function AnalyticsView({ onShowDetail }: { onShowDetail: (data: ModalData) => void }) {
+function AnalyticsView() {
   const [data, setData] = useState<{
     politicians: Politician[];
     mandates: Mandate[];
@@ -1487,7 +1475,7 @@ function AnalyticsView({ onShowDetail }: { onShowDetail: (data: ModalData) => vo
   );
 }
 
-function CantonalMapView({ onSelect }: { onSelect: (id: string) => void }) {
+function CantonalMapView({ onSelect: _onSelect }: { onSelect: (id: string) => void }) {
   const [data, setData] = useState<{ canton: string; count: number; parties: Record<string, number> }[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -1497,15 +1485,15 @@ function CantonalMapView({ onSelect }: { onSelect: (id: string) => void }) {
         if (!acc[p.canton]) {
           acc[p.canton] = { count: 0, parties: {} };
         }
-        acc[p.canton].count++;
-        acc[p.canton].parties[p.party] = (acc[p.canton].parties[p.party] || 0) + 1;
+        acc[p.canton]!.count++;
+        acc[p.canton]!.parties[p.party] = (acc[p.canton]!.parties[p.party] || 0) + 1;
         return acc;
       }, {} as Record<string, { count: number; parties: Record<string, number> }>);
 
       setData(Object.entries(byCanton).map(([canton, stats]) => ({
         canton,
-        count: stats.count,
-        parties: stats.parties,
+        count: (stats as { count: number; parties: Record<string, number> }).count,
+        parties: (stats as { count: number; parties: Record<string, number> }).parties,
       })));
       setLoading(false);
     });
@@ -1623,7 +1611,8 @@ function CompareView({ compareIds, setCompareIds }: { compareIds: string[]; setC
   );
 }
 
-function SectorsView({ onShowDetail }: { onShowDetail: (data: ModalData) => void }) {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function SectorsView({ onShowDetail: _unused1 }: { onShowDetail: (data: ModalData) => void }) {
   const [mandates, setMandates] = useState<Mandate[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -1690,7 +1679,8 @@ function SectorsView({ onShowDetail }: { onShowDetail: (data: ModalData) => void
   );
 }
 
-function VotesView({ onShowDetail }: { onShowDetail: (data: ModalData) => void }) {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function VotesView({ onShowDetail: _unused2 }: { onShowDetail: (data: ModalData) => void }) {
   const [votes, setVotes] = useState<Vote[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -1742,7 +1732,7 @@ function VotesView({ onShowDetail }: { onShowDetail: (data: ModalData) => void }
   );
 }
 
-function SearchView({ onSelect }: { onSelect: (id: string) => void }) {
+function SearchView() {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<{ politicians: Politician[]; mandates: Mandate[] }>({ politicians: [], mandates: [] });
   const [searched, setSearched] = useState(false);
@@ -1780,7 +1770,7 @@ function SearchView({ onSelect }: { onSelect: (id: string) => void }) {
             <h2 className="font-semibold mb-3">Politicians ({results.politicians.length})</h2>
             <div className="space-y-2">
               {results.politicians.map(p => (
-                <div key={p.id} onClick={() => onSelect(p.id)} className="p-3 bg-slate-800 rounded-lg cursor-pointer hover:bg-slate-700">
+                <div key={p.id} className="p-3 bg-slate-800 rounded-lg">
                   <span className="font-medium">{p.full_name}</span>
                   <span className="text-slate-400 ml-2">({p.party}, {p.canton})</span>
                 </div>
@@ -1819,7 +1809,7 @@ function LoadingSpinner() {
 }
 
 // Organizations View
-function OrganizationsView({ onShowDetail }: { onShowDetail: (data: ModalData) => void }) {
+function OrganizationsView() {
   const [organizations, setOrganizations] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -1858,8 +1848,6 @@ function OrganizationsView({ onShowDetail }: { onShowDetail: (data: ModalData) =
           {filtered.map(org => (
             <div
               key={org.id}
-              onClick={() => onShowDetail({
-                type: 'organization',
                 title: org.name,
                 source: `organizations id: ${org.id}`,
                 data: org,
@@ -1931,7 +1919,7 @@ function OrganizationsView({ onShowDetail }: { onShowDetail: (data: ModalData) =
 }
 
 // Political Parties View
-function PartiesView({ onShowDetail }: { onShowDetail: (data: ModalData) => void }) {
+function PartiesView() {
   const [parties, setParties] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -2043,7 +2031,7 @@ function PartiesView({ onShowDetail }: { onShowDetail: (data: ModalData) => void
 }
 
 // Committees View
-function CommitteesView({ onShowDetail }: { onShowDetail: (data: ModalData) => void }) {
+function CommitteesView() {
   const [committees, setCommittees] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 

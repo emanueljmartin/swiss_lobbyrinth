@@ -188,7 +188,7 @@ export default function CareerTimelineView({ politicianId }: { politicianId: str
         <div className="relative">
           <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-gray-200"></div>
           <div className="space-y-4">
-            {milestones.map((milestone, index) => (
+            {milestones.map((milestone) => (
               <div key={milestone.id} className="relative pl-10">
                 <div className="absolute left-2 top-1 bg-white p-1 rounded-full">
                   {getMilestoneIcon(milestone.milestone_type)}

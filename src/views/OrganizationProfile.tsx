@@ -62,16 +62,8 @@ export function OrganizationProfile({ organizationId, onShowDetail }: Organizati
           )
         `)
         .eq('organization_id', organizationId)
-    ]).then(([orgRes, mandateRes]) => {
+    ]).then(([orgRes]) => {
       setOrganization(orgRes.data);
-      const mandateData = (mandateRes.data || []).map((m: any) => ({
-        ...m,
-        politician_id: m.politician.id,
-        politician_first_name: m.politician.first_name,
-        politician_last_name: m.politician.last_name,
-        politician_party: m.politician.party,
-        politician_chamber: m.politician.chamber
-      }));
       setMandates(mandates);
       setLoading(false);
     });

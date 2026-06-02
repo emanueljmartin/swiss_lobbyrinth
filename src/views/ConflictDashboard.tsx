@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { AlertTriangle, DollarSign, Users, TrendingUp, Shield } from 'lucide-react';
+import { AlertTriangle, DollarSign, Users, Shield } from 'lucide-react';
 
 interface RiskScore {
   id: string;
@@ -336,7 +336,7 @@ export default function ConflictDashboard() {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {financeSummary.slice(0, 30).map((finance, index) => (
+              {financeSummary.slice(0, 30).map((finance) => (
                 <tr key={`${finance.politician_id}-${finance.election_year}`} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm font-medium text-gray-900">{finance.full_name}</div>

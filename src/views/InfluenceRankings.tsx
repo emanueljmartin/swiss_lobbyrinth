@@ -181,7 +181,9 @@ export default function InfluenceRankingsView() {
                     <div className="flex items-center">
                       <span className="font-medium">{p.declared_interests}</span>
                       {p.declared_interests > 5 && (
-                        <AlertTriangle className="h-4 w-4 text-amber-500 ml-2" title="High number of declared interests" />
+                        <div className="inline-block" title="High number of declared interests">
+                          <AlertTriangle className="h-4 w-4 text-amber-500 ml-2" />
+                        </div>
                       )}
                     </div>
                   </td>

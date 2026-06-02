@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { Network, Users, Zap, TrendingUp, GitBranch } from 'lucide-react';
+import { Network, Users, Zap, GitBranch } from 'lucide-react';
 
 interface NetworkLink {
   politician_1: string;
