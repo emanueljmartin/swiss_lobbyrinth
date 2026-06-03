@@ -171,7 +171,7 @@ export default function NetworkAnalysisView() {
           ].map((tab) => (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id as any)}
+              onClick={() => setActiveTab(tab.id as typeof activeTab)}
               className={`${
                 activeTab === tab.id
                   ? 'border-blue-500 text-blue-600'

@@ -5,6 +5,9 @@ import ConflictDashboardView from './views/ConflictDashboard';
 import MonitoringDashboardView from './views/MonitoringDashboard';
 import NetworkAnalysisView from './views/NetworkAnalysis';
 import PolicyTimelineView from './views/PolicyTimeline';
+import { DataIngestionView } from './views/DataIngestion';
+import { InfluenceVoteCorrelationView } from './views/InfluenceVoteCorrelation';
+import { VotingSimilarityView } from './views/VotingSimilarity';
 
 // Error Boundary Component
 class ErrorBoundary extends Component<
@@ -202,7 +205,7 @@ interface Committee {
   policy_area: string;
 }
 
-type ViewType = 'dashboard' | 'politicians' | 'profile' | 'network' | 'sectors' | 'votes' | 'search' | 'compare' | 'conflicts' | 'analytics' | 'map' | 'organizations' | 'parties' | 'committees' | 'influence' | 'risk-dashboard' | 'monitoring' | 'network-analysis' | 'policy-timeline';
+type ViewType = 'dashboard' | 'politicians' | 'profile' | 'network' | 'sectors' | 'votes' | 'search' | 'compare' | 'conflicts' | 'analytics' | 'map' | 'organizations' | 'parties' | 'committees' | 'influence' | 'risk-dashboard' | 'monitoring' | 'network-analysis' | 'policy-timeline' | 'data-ingestion' | 'influence-vote' | 'voting-similarity';
 
 // Statistics helper
 function calculatePartyLoyalty(party: string, voteRecords: VoteRecord[], politicians: Politician[]): number {
@@ -288,6 +291,9 @@ function AppContent() {
         {activeView === 'monitoring' && <MonitoringDashboardView />}
         {activeView === 'network-analysis' && <NetworkAnalysisView />}
         {activeView === 'policy-timeline' && <PolicyTimelineView />}
+        {activeView === 'data-ingestion' && <DataIngestionView />}
+        {activeView === 'influence-vote' && <InfluenceVoteCorrelationView />}
+        {activeView === 'voting-similarity' && <VotingSimilarityView />}
       </main>
       <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} data={modalData} />
       </div>
@@ -302,6 +308,8 @@ function Sidebar({ activeView, navigate }: { activeView: ViewType; navigate: (v:
     { id: 'dashboard', label: 'Dashboard', icon: '📊' },
     { id: 'politicians', label: 'Politicians', icon: '👥' },
     { id: 'influence', label: 'Influence Rankings', icon: '🏆' },
+    { id: 'influence-vote', label: 'Influence ↔ Vote', icon: '🔗' },
+    { id: 'voting-similarity', label: 'Vote Similarity', icon: '🧩' },
     { id: 'risk-dashboard', label: 'Conflict Detector', icon: '🛡️' },
     { id: 'monitoring', label: 'Monitoring Alerts', icon: '📡' },
     { id: 'network-analysis', label: 'Network Analysis', icon: '🕸️' },
@@ -314,6 +322,7 @@ function Sidebar({ activeView, navigate }: { activeView: ViewType; navigate: (v:
     { id: 'conflicts', label: 'Conflicts', icon: '⚠️' },
     { id: 'compare', label: 'Compare', icon: '⚖️' },
     { id: 'search', label: 'Search', icon: '🔍' },
+    { id: 'data-ingestion', label: 'Data Ingestion', icon: '⬇️' },
   ];
 
   const profileItems = [

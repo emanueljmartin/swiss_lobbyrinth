@@ -26,6 +26,7 @@ Deno.serve(async (req: Request) => {
     );
 
     const html = await response.text();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const councillors: any[] = [];
 
     // Simple regex extraction

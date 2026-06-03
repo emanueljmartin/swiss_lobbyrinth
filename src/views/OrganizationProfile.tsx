@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase';
 
 interface OrganizationProfileProps {
   organizationId: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   onShowDetail: (data: any) => void;
 }
 
