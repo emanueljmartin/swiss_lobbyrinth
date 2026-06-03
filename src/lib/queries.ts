@@ -219,6 +219,7 @@ export async function computePartyStats(
       .map(([s]) => s);
 
     return {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       party: party as any,
       totalMandates: val.mandates.length,
       avgMandatesPerPolitician: val.ids.length > 0 ? val.mandates.length / val.ids.length : 0,

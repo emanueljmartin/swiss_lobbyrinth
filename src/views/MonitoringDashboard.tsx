@@ -17,7 +17,7 @@ interface ActivityEvent {
   event_type: string;
   politician_id: string | null;
   impact_score: number | null;
-  event_data: any;
+  event_data: unknown;
   created_at: string;
 }
 

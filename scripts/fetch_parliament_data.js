@@ -1,5 +1,5 @@
 // Fetch real data from Swiss Parliament API
-const API_BASE = 'http://ws-old.parlament.ch';
+const API_BASE = 'https://ws-old.parlament.ch';
 
 async function fetchCouncillors() {
   const response = await fetch(`${API_BASE}/councillors/basicdetails?format=json&lang=de`);

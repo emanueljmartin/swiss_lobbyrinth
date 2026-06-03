@@ -163,6 +163,7 @@ export default function ConflictDashboard() {
           ].map((tab) => (
             <button
               key={tab.id}
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
               onClick={() => setActiveTab(tab.id as any)}
               className={`${
                 activeTab === tab.id
