@@ -164,7 +164,7 @@ export default function ConflictDashboard() {
             <button
               key={tab.id}
               // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              onClick={() => setActiveTab(tab.id as any)}
+              onClick={() => setActiveTab(tab.id as 'risks' | 'lobbying' | 'funding')}
               className={`${
                 activeTab === tab.id
                   ? 'border-blue-500 text-blue-600'
@@ -360,7 +360,7 @@ export default function ConflictDashboard() {
                     {formatCHF(finance.from_party)}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {formatCHF(finance.total_received_chf - finance.from_companies - finance.from_party - finance.from_individuals - finance.from_unions)}
+                    {formatCHF(Math.max(0, (finance.total_received_chf ?? 0) - (finance.from_companies ?? 0) - (finance.from_party ?? 0) - (finance.from_individuals ?? 0) - (finance.from_unions ?? 0)))}
                   </td>
                 </tr>
               ))}

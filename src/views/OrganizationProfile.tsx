@@ -63,9 +63,23 @@ export function OrganizationProfile({ organizationId, onShowDetail }: Organizati
           )
         `)
         .eq('organization_id', organizationId)
-    ]).then(([orgRes]) => {
+    ]).then(([orgRes, mandatesRes]) => {
       setOrganization(orgRes.data);
-      setMandates(mandates);
+      // Flatten nested politician data to match MandateWithPolitician interface
+      const mappedMandates = (mandatesRes.data ?? []).map((m: Record<string, unknown>) => ({
+        id: m.id as string,
+        role_title: m.role_title as string,
+        is_paid: m.is_paid as boolean,
+        compensation_range: m.compensation_range as string,
+        politician_id: ((m.politician as Record<string, unknown>[] ?? [])[0]?.id ?? '') as string,
+        politician_first_name: ((m.politician as Record<string, unknown>[] ?? [])[0]?.first_name ?? '') as string,
+        politician_last_name: ((m.politician as Record<string, unknown>[] ?? [])[0]?.last_name ?? '') as string,
+        politician_party: ((m.politician as Record<string, unknown>[] ?? [])[0]?.party ?? '') as string,
+        politician_chamber: ((m.politician as Record<string, unknown>[] ?? [])[0]?.chamber ?? '') as string,
+        relationship_context: m.relationship_context as string,
+        potential_conflicts: (m.potential_conflicts as string[]) ?? [],
+      }));
+      setMandates(mappedMandates);
       setLoading(false);
     });
   }, [organizationId]);

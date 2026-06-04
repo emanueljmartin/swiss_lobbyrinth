@@ -78,7 +78,7 @@ export function PoliticianProfile({ politicianId, onNavigate }: PoliticianProfil
             {/* Avatar placeholder */}
             <div className="w-16 h-16 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center flex-shrink-0">
               <span className="text-2xl font-bold text-slate-500">
-                {politician.first_name[0]}{politician.last_name[0]}
+                {politician.first_name?.[0] ?? '?'}{politician.last_name?.[0] ?? '?'}
               </span>
             </div>
             <div className="flex-1">

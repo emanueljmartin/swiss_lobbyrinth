@@ -166,8 +166,7 @@ export default function CareerTimelineView({ politicianId }: { politicianId: str
           ].map((tab) => (
             <button
               key={tab.id}
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              onClick={() => setActiveTab(tab.id as any)}
+              onClick={() => setActiveTab(tab.id as 'career' | 'lobbying' | 'funding' | 'conflicts')}
               className={`${
                 activeTab === tab.id
                   ? 'border-blue-500 text-blue-600'

@@ -2,19 +2,20 @@ import { supabase } from './supabase';
 import type {
   Politician, Mandate, Committee, CommitteeMembership,
   ParliamentaryVote, VoteRecord, DataSource, IndustrySector,
-  SectorExposure, PartyMandateStats, NetworkCentrality, PoliticianProfile
+  SectorExposure, PartyMandateStats, NetworkCentrality, PoliticianProfile,
+  PartyAffiliation
 } from '../types';
 
 export async function fetchPoliticians(): Promise<Politician[]> {
   const { data, error } = await supabase
     .from('politicians')
     .select('*')
+    .eq('is_active', true)
     .order('last_name');
   if (error) {
     console.error('fetchPoliticians error:', error);
     throw error;
   }
-  console.log('fetchPoliticians loaded:', data?.length);
   return data ?? [];
 }
 
@@ -219,8 +220,7 @@ export async function computePartyStats(
       .map(([s]) => s);
 
     return {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      party: party as any,
+      party: party as PartyAffiliation,
       totalMandates: val.mandates.length,
       avgMandatesPerPolitician: val.ids.length > 0 ? val.mandates.length / val.ids.length : 0,
       paidMandates: val.mandates.filter(m => m.is_paid).length,
@@ -255,16 +255,20 @@ export async function computeNetworkCentrality(
 export async function searchEntities(query: string): Promise<{ id: string; name: string; type: string; subtitle: string }[]> {
   if (query.length < 2) return [];
 
+  // Escape ilike special characters to prevent pattern injection
+  const safeQuery = query.replace(/[%_]/g, '\\$&');
+
   const { data: politicians } = await supabase
     .from('politicians')
     .select('id, full_name, party, chamber, canton')
-    .ilike('full_name', `%${query}%`)
+    .eq('is_active', true)
+    .ilike('full_name', `%${safeQuery}%`)
     .limit(5);
 
   const { data: entities } = await supabase
     .from('entities')
     .select('id, canonical_name, entity_type')
-    .ilike('canonical_name', `%${query}%`)
+    .ilike('canonical_name', `%${safeQuery}%`)
     .in('entity_type', ['COMPANY', 'ASSOCIATION', 'FOUNDATION', 'COMMITTEE'])
     .limit(5);
 
