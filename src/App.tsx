@@ -131,7 +131,7 @@ function Modal({ isOpen, onClose, data }: { isOpen: boolean; onClose: () => void
         {/* Footer */}
         <div className="p-4 border-t border-slate-800 flex justify-between items-center bg-slate-950/50">
           <div className="text-xs text-slate-500">
-            Research preview
+            Live data — Swiss Parliament
           </div>
           <div className="flex gap-2">
             <button
@@ -263,12 +263,8 @@ function AppContent() {
 
   return (
     <div className="flex h-screen bg-slate-950 text-white flex-col">
-      {/* Synthetic Data Warning Banner */}
-      <div className="bg-amber-950 border-b border-amber-700 px-4 py-2">
-        <div className="text-xs text-amber-200 font-medium">
-          ⚠️ Research Preview: This application uses synthetic/prototype data for demonstration purposes only. Data does not represent actual Swiss parliamentary records.
-        </div>
-      </div>
+
+
       <div className="flex flex-1 overflow-auto">
         <Sidebar activeView={activeView} navigate={navigate} />
         <main className="flex-1 overflow-auto">
@@ -401,8 +397,8 @@ function Sidebar({ activeView, navigate }: { activeView: ViewType; navigate: (v:
         </div>
       </nav>
       <div className="p-3 border-t border-slate-800 text-xs text-slate-600">
-        <div className="font-medium mb-1">Research Status</div>
-        <div>Prototype dataset</div>
+        <div className="font-medium mb-1">Data Source</div>
+        <div>Swiss Parliament API</div>
       </div>
     </aside>
   );

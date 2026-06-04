@@ -15,7 +15,7 @@ interface SimilarityRow {
   politician_b_name?: string;
 }
 
-// Fallback: compute similarity from vote_records in-app for demo
+// Fallback: compute similarity from vote_records in-app
 interface VoteRecord {
   politician_id: string;
   parliamentary_vote_id: string;

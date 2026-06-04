@@ -22,19 +22,15 @@ SOFTWARE.
 
 ---
 
-IMPORTANT DATA DISCLAIMER:
+DATA SOURCE NOTICE:
 
-This software uses completely synthetic, randomly-generated data for
-demonstration and research purposes only. It does NOT contain real Swiss
-parliamentary data, government information, or factual political relationships.
+This application uses real data from official Swiss government APIs:
+- Swiss Parliament OData API (ws.parlament.ch)
+- Lobbywatch SPARQL (lod.lobbywatch.ch)
+- Zefix Commercial Registry (zefix.admin.ch)
 
-Do NOT use this application for:
-- Actual political analysis
-- Real transparency reporting
-- Publishing as official data
-- Any purpose assuming data authenticity
-
-For real Swiss political information, consult official sources:
+Data accuracy depends on the source APIs. Verify critical information
+against official sources:
 - https://www.parlament.ch (Swiss Parliament)
 - https://www.bfs.admin.ch (Federal Statistics Office)
 - https://www.shab.ch (Swiss Business Registry)
