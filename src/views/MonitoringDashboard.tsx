@@ -1,72 +1,73 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { AlertTriangle, TrendingUp, Activity, Bell, Clock, Zap } from 'lucide-react';
+import { AlertTriangle, Activity, Zap, Users, Vote } from 'lucide-react';
 
-interface Alert {
+interface RiskPolitician {
   id: string;
-  alert_type: string;
-  severity: string;
-  politician_id: string | null;
-  title: string;
-  description: string | null;
-  created_at: string;
+  full_name: string;
+  party: string;
+  canton: string;
+  total_conflict_flags: number;
+  high_severity_flags: number;
+  paid_interests_count: number;
+  total_compensation: number;
 }
 
-interface ActivityEvent {
+interface RecentVote {
   id: string;
-  event_type: string;
-  politician_id: string | null;
-  impact_score: number | null;
-  event_data: unknown;
-  created_at: string;
+  title_de: string;
+  vote_date: string;
+  result: string | null;
+  yes_count: number;
+  no_count: number;
+  chamber: string;
 }
 
-interface VotingAnomaly {
-  id: string;
-  politician_id: string;
-  anomaly_type: string;
-  severity: number;
-  expected_vote: string;
-  actual_vote: string;
-  confidence_score: number;
-  created_at: string;
+interface CrossPartyPair {
+  politician_a_id: string;
+  politician_b_id: string;
+  party_a: string;
+  party_b: string;
+  similarity_score: number;
+  votes_compared: number;
 }
 
 export default function MonitoringDashboard() {
-  const [alerts, setAlerts] = useState<Alert[]>([]);
-  const [activity, setActivity] = useState<ActivityEvent[]>([]);
-  const [anomalies, setAnomalies] = useState<VotingAnomaly[]>([]);
+  const [riskPoliticians, setRiskPoliticians] = useState<RiskPolitician[]>([]);
+  const [recentVotes, setRecentVotes] = useState<RecentVote[]>([]);
+  const [crossPartyPairs, setCrossPartyPairs] = useState<CrossPartyPair[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetchMonitoringData();
-    const interval = setInterval(fetchMonitoringData, 30000); // Refresh every 30 seconds
-    return () => clearInterval(interval);
   }, []);
 
   async function fetchMonitoringData() {
     try {
-      const [alertsRes, activityRes, anomaliesRes] = await Promise.all([
+      const [riskRes, votesRes, similarityRes] = await Promise.all([
         supabase
-          .from('alerts')
+          .from('politician_risk_scores')
           .select('*')
-          .order('created_at', { ascending: false })
-          .limit(20),
+          .gt('total_conflict_flags', 0)
+          .order('total_conflict_flags', { ascending: false })
+          .limit(15),
         supabase
-          .from('activity_log')
+          .from('parliamentary_votes')
           .select('*')
-          .order('created_at', { ascending: false })
-          .limit(30),
+          .order('vote_date', { ascending: false })
+          .limit(10),
         supabase
-          .from('voting_anomalies')
+          .from('voting_similarity')
           .select('*')
-          .order('created_at', { ascending: false })
-          .limit(15)
+          .eq('is_cross_party', true)
+          .gte('similarity_score', 0.8)
+          .order('similarity_score', { ascending: false })
+          .limit(15),
       ]);
 
-      if (alertsRes.data) setAlerts(alertsRes.data);
-      if (activityRes.data) setActivity(activityRes.data);
-      if (anomaliesRes.data) setAnomalies(anomaliesRes.data);
+      if (riskRes.data) setRiskPoliticians(riskRes.data);
+      if (votesRes.data) setRecentVotes(votesRes.data);
+      if (similarityRes.data) setCrossPartyPairs(similarityRes.data);
     } catch (error) {
       console.error('Error fetching monitoring data:', error);
     } finally {
@@ -74,45 +75,14 @@ export default function MonitoringDashboard() {
     }
   }
 
-  function getSeverityColor(severity: string) {
-    switch (severity) {
-      case 'CRITICAL':
-        return 'bg-red-100 text-red-800 border-red-200';
-      case 'HIGH':
-        return 'bg-orange-100 text-orange-800 border-orange-200';
-      case 'MEDIUM':
-        return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-      case 'LOW':
-        return 'bg-blue-100 text-blue-800 border-blue-200';
-      default:
-        return 'bg-gray-100 text-gray-800 border-gray-200';
-    }
+  function formatDate(date: string) {
+    return new Date(date).toLocaleDateString('de-CH', { day: '2-digit', month: '2-digit', year: 'numeric' });
   }
 
-  function getAlertIcon(type: string) {
-    switch (type) {
-      case 'new_conflict':
-      case 'interest_conflict':
-        return <AlertTriangle className="h-5 w-5" />;
-      case 'voting_anomaly':
-      case 'party_defection':
-        return <Zap className="h-5 w-5" />;
-      case 'lobbying_spike':
-        return <TrendingUp className="h-5 w-5" />;
-      default:
-        return <Bell className="h-5 w-5" />;
-    }
-  }
-
-  function timeAgo(date: string) {
-    const now = new Date();
-    const then = new Date(date);
-    const seconds = Math.floor((now.getTime() - then.getTime()) / 1000);
-
-    if (seconds < 60) return `${seconds}s ago`;
-    if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
-    if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
-    return `${Math.floor(seconds / 86400)}d ago`;
+  function getRiskLevel(flags: number) {
+    if (flags >= 5) return { label: 'HIGH', color: 'bg-red-100 text-red-800 border-red-200' };
+    if (flags >= 3) return { label: 'MEDIUM', color: 'bg-yellow-100 text-yellow-800 border-yellow-200' };
+    return { label: 'LOW', color: 'bg-blue-100 text-blue-800 border-blue-200' };
   }
 
   if (loading) {
@@ -123,215 +93,158 @@ export default function MonitoringDashboard() {
     );
   }
 
-  const criticalAlerts = alerts.filter(a => a.severity === 'CRITICAL').length;
-  const highAlerts = alerts.filter(a => a.severity === 'HIGH').length;
-  const totalAnomalies = anomalies.length;
-
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="border-b border-gray-200 pb-4">
-        <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-          <Activity className="h-6 w-6 text-blue-600" />
-          Real-Time Monitoring Dashboard
+    <div className="space-y-6 p-6">
+      <div className="border-b border-slate-700 pb-4">
+        <h1 className="text-2xl font-bold flex items-center gap-2">
+          <Activity className="h-6 w-6 text-blue-400" />
+          Monitoring Dashboard
         </h1>
-        <p className="mt-1 text-sm text-gray-500">
-          Live alerts and activity tracking
+        <p className="mt-1 text-sm text-slate-400">
+          Conflict flags, recent votes, and cross-party alignment from Parliament data
         </p>
       </div>
 
-      {/* Summary Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-white border border-red-200 rounded-lg p-4">
-          <div className="flex items-center">
-            <div className="flex-shrink-0 bg-red-100 rounded-md p-3">
-              <AlertTriangle className="h-6 w-6 text-red-600" />
+      {/* Summary Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="bg-slate-900 border border-slate-700 rounded-lg p-4">
+          <div className="flex items-center gap-3">
+            <div className="bg-red-900/50 rounded-md p-3">
+              <AlertTriangle className="h-6 w-6 text-red-400" />
             </div>
-            <div className="ml-4 flex-1">
-              <div className="text-sm text-gray-500">Critical Alerts</div>
-              <div className="text-2xl font-bold text-red-600">{criticalAlerts}</div>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white border border-orange-200 rounded-lg p-4">
-          <div className="flex items-center">
-            <div className="flex-shrink-0 bg-orange-100 rounded-md p-3">
-              <Bell className="h-6 w-6 text-orange-600" />
-            </div>
-            <div className="ml-4 flex-1">
-              <div className="text-sm text-gray-500">High Priority</div>
-              <div className="text-2xl font-bold text-orange-600">{highAlerts}</div>
+            <div>
+              <div className="text-sm text-slate-400">Flagged Politicians</div>
+              <div className="text-2xl font-bold text-red-400">{riskPoliticians.length}</div>
             </div>
           </div>
         </div>
-
-        <div className="bg-white border border-purple-200 rounded-lg p-4">
-          <div className="flex items-center">
-            <div className="flex-shrink-0 bg-purple-100 rounded-md p-3">
-              <Zap className="h-6 w-6 text-purple-600" />
+        <div className="bg-slate-900 border border-slate-700 rounded-lg p-4">
+          <div className="flex items-center gap-3">
+            <div className="bg-blue-900/50 rounded-md p-3">
+              <Vote className="h-6 w-6 text-blue-400" />
             </div>
-            <div className="ml-4 flex-1">
-              <div className="text-sm text-gray-500">Voting Anomalies</div>
-              <div className="text-2xl font-bold text-purple-600">{totalAnomalies}</div>
+            <div>
+              <div className="text-sm text-slate-400">Recent Votes</div>
+              <div className="text-2xl font-bold text-blue-400">{recentVotes.length}</div>
             </div>
           </div>
         </div>
-
-        <div className="bg-white border border-green-200 rounded-lg p-4">
-          <div className="flex items-center">
-            <div className="flex-shrink-0 bg-green-100 rounded-md p-3">
-              <Activity className="h-6 w-6 text-green-600" />
+        <div className="bg-slate-900 border border-slate-700 rounded-lg p-4">
+          <div className="flex items-center gap-3">
+            <div className="bg-amber-900/50 rounded-md p-3">
+              <Users className="h-6 w-6 text-amber-400" />
             </div>
-            <div className="ml-4 flex-1">
-              <div className="text-sm text-gray-500">Live Events</div>
-              <div className="text-2xl font-bold text-green-600">{activity.length}</div>
+            <div>
+              <div className="text-sm text-slate-400">Cross-Party Alignments</div>
+              <div className="text-2xl font-bold text-amber-400">{crossPartyPairs.length}</div>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Alerts Feed */}
-        <div className="lg:col-span-2 bg-white border border-gray-200 rounded-lg">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-              <Bell className="h-5 w-5" />
-              Recent Alerts
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Risk Flagged Politicians */}
+        <div className="bg-slate-900 border border-slate-700 rounded-lg">
+          <div className="px-6 py-4 border-b border-slate-800">
+            <h2 className="text-lg font-semibold flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-red-400" />
+              Conflict Risk Flags
             </h2>
           </div>
-          <div className="divide-y divide-gray-200 max-h-96 overflow-y-auto">
-            {alerts.slice(0, 15).map((alert) => (
-              <div key={alert.id} className="p-4 hover:bg-gray-50 transition">
-                <div className="flex items-start gap-3">
-                  <div className={`flex-shrink-0 ${getSeverityColor(alert.severity)} p-2 rounded-lg`}>
-                    {getAlertIcon(alert.alert_type)}
+          <div className="divide-y divide-slate-800 max-h-96 overflow-y-auto">
+            {riskPoliticians.map((p) => {
+              const risk = getRiskLevel(p.total_conflict_flags);
+              return (
+                <div key={p.id} className="p-4 hover:bg-slate-800/50 transition">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium">{p.full_name}</p>
+                      <p className="text-xs text-slate-400">{p.party} - {p.canton}</p>
+                    </div>
+                    <span className={`px-2 py-1 rounded-full text-xs font-semibold border ${risk.color}`}>
+                      {risk.label} ({p.total_conflict_flags})
+                    </span>
                   </div>
+                </div>
+              );
+            })}
+            {riskPoliticians.length === 0 && (
+              <div className="p-8 text-center text-slate-500">No conflict flags detected</div>
+            )}
+          </div>
+        </div>
+
+        {/* Recent Parliamentary Votes */}
+        <div className="bg-slate-900 border border-slate-700 rounded-lg">
+          <div className="px-6 py-4 border-b border-slate-800">
+            <h2 className="text-lg font-semibold flex items-center gap-2">
+              <Vote className="h-5 w-5 text-blue-400" />
+              Recent Parliamentary Votes
+            </h2>
+          </div>
+          <div className="divide-y divide-slate-800 max-h-96 overflow-y-auto">
+            {recentVotes.map((v) => (
+              <div key={v.id} className="p-4 hover:bg-slate-800/50 transition">
+                <div className="flex items-center justify-between">
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between gap-2">
-                      <div>
-                        <p className="text-sm font-semibold text-gray-900">{alert.title}</p>
-                        {alert.description && (
-                          <p className="text-xs text-gray-600 mt-1">{alert.description}</p>
-                        )}
-                      </div>
-                      <span className={`flex-shrink-0 inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold border ${getSeverityColor(alert.severity)}`}>
-                        {alert.severity}
-                      </span>
-                    </div>
-                    <div className="mt-2 flex items-center gap-2 text-xs text-gray-500">
-                      <Clock className="h-3 w-3" />
-                      {timeAgo(alert.created_at)}
-                    </div>
+                    <p className="text-sm font-medium truncate">{v.title_de}</p>
+                    <p className="text-xs text-slate-400 mt-1">
+                      {v.chamber} - {formatDate(v.vote_date)}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 ml-3">
+                    <span className="text-xs text-green-400">{v.yes_count} Y</span>
+                    <span className="text-xs text-red-400">{v.no_count} N</span>
                   </div>
                 </div>
               </div>
             ))}
-            {alerts.length === 0 && (
-              <div className="p-8 text-center text-gray-500">
-                No alerts yet
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Activity Timeline */}
-        <div className="bg-white border border-gray-200 rounded-lg">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-              <Activity className="h-5 w-5" />
-              Activity Log
-            </h2>
-          </div>
-          <div className="divide-y divide-gray-200 max-h-96 overflow-y-auto">
-            {activity.slice(0, 12).map((event) => (
-              <div key={event.id} className="p-4 hover:bg-gray-50 transition">
-                <div className="flex items-start gap-2">
-                  <span className="flex-shrink-0 inline-flex items-center px-2 py-1 rounded-md text-xs font-semibold bg-gray-100 text-gray-700 capitalize">
-                    {event.event_type.replace('_', ' ')}
-                  </span>
-                </div>
-                {event.impact_score && (
-                  <div className="mt-2">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-xs text-gray-600">Impact</span>
-                      <span className="text-xs font-semibold text-gray-900">{Math.round(event.impact_score)}</span>
-                    </div>
-                    <div className="w-full bg-gray-200 rounded-full h-1">
-                      <div
-                        className="bg-blue-600 h-1 rounded-full"
-                        style={{ width: `${event.impact_score}%` }}
-                      ></div>
-                    </div>
-                  </div>
-                )}
-                <p className="text-xs text-gray-500 mt-2">
-                  {timeAgo(event.created_at)}
-                </p>
-              </div>
-            ))}
-            {activity.length === 0 && (
-              <div className="p-8 text-center text-gray-500">
-                No activity yet
-              </div>
+            {recentVotes.length === 0 && (
+              <div className="p-8 text-center text-slate-500">No recent votes available</div>
             )}
           </div>
         </div>
       </div>
 
-      {/* Voting Anomalies */}
-      <div className="bg-white border border-gray-200 rounded-lg">
-        <div className="px-6 py-4 border-b border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-            <Zap className="h-5 w-5 text-purple-600" />
-            Detected Voting Anomalies
+      {/* Cross-Party High Similarity */}
+      <div className="bg-slate-900 border border-slate-700 rounded-lg">
+        <div className="px-6 py-4 border-b border-slate-800">
+          <h2 className="text-lg font-semibold flex items-center gap-2">
+            <Zap className="h-5 w-5 text-amber-400" />
+            High Cross-Party Voting Alignment (Potential Anomalies)
           </h2>
+          <p className="text-xs text-slate-500 mt-1">Politicians from different parties voting similarly over 80% of the time</p>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-gray-50">
-              <tr className="border-b border-gray-200">
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Anomaly Type</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Expected</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actual</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Confidence</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Detected</th>
+            <thead className="bg-slate-800/50">
+              <tr className="border-b border-slate-700">
+                <th className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase">Party A</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase">Party B</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase">Similarity</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase">Votes Compared</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-200">
-              {anomalies.slice(0, 10).map((anomaly) => (
-                <tr key={anomaly.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 text-sm">
-                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold bg-purple-100 text-purple-800 capitalize">
-                      {anomaly.anomaly_type.replace('_', ' ')}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-sm font-medium text-gray-900">
-                    {anomaly.expected_vote}
-                  </td>
-                  <td className="px-6 py-4 text-sm font-medium text-red-600">
-                    {anomaly.actual_vote}
-                  </td>
-                  <td className="px-6 py-4 text-sm">
+            <tbody className="divide-y divide-slate-800">
+              {crossPartyPairs.map((pair, i) => (
+                <tr key={i} className="hover:bg-slate-800/50">
+                  <td className="px-6 py-3 text-sm">{pair.party_a}</td>
+                  <td className="px-6 py-3 text-sm">{pair.party_b}</td>
+                  <td className="px-6 py-3 text-sm">
                     <div className="flex items-center gap-2">
-                      <div className="w-8 bg-gray-200 rounded-full h-1">
-                        <div
-                          className="bg-green-600 h-1 rounded-full"
-                          style={{ width: `${(anomaly.confidence_score || 0) * 100}%` }}
-                        ></div>
+                      <div className="w-16 bg-slate-700 rounded-full h-1.5">
+                        <div className="bg-amber-500 h-1.5 rounded-full" style={{ width: `${pair.similarity_score * 100}%` }} />
                       </div>
-                      <span className="text-xs text-gray-600">{Math.round((anomaly.confidence_score || 0) * 100)}%</span>
+                      <span className="text-xs text-amber-400">{(pair.similarity_score * 100).toFixed(0)}%</span>
                     </div>
                   </td>
-                  <td className="px-6 py-4 text-xs text-gray-500">
-                    {timeAgo(anomaly.created_at)}
-                  </td>
+                  <td className="px-6 py-3 text-sm text-slate-400">{pair.votes_compared}</td>
                 </tr>
               ))}
-              {anomalies.length === 0 && (
+              {crossPartyPairs.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
-                    No anomalies detected
+                  <td colSpan={4} className="px-6 py-8 text-center text-slate-500">
+                    Not enough vote data to detect cross-party anomalies
                   </td>
                 </tr>
               )}

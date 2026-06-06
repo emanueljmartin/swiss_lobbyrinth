@@ -322,7 +322,7 @@ function Sidebar({ activeView, navigate }: { activeView: ViewType; navigate: (v:
   ];
 
   const profileItems = [
-    { id: 'organizations', label: 'Organizations', icon: '🏢' },
+    { id: 'organizations', label: 'Committees & Orgs', icon: '🏢' },
     { id: 'parties', label: 'Political Parties', icon: '🏛️' },
     { id: 'committees', label: 'Committees', icon: '📋' },
   ];
@@ -1819,31 +1819,43 @@ function LoadingSpinner() {
 // Organizations View
 function OrganizationsView() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [organizations, setOrganizations] = useState<any[]>([]);
+  const [committees, setCommittees] = useState<any[]>([]);
+  const [memberCounts, setMemberCounts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
 
   useEffect(() => {
-    supabase.from('organizations').select('*').order('name').then(({ data }) => {
-      setOrganizations(data || []);
+    Promise.all([
+      supabase.from('committees').select('*').order('name_de'),
+      supabase.from('committee_memberships').select('committee_id').eq('is_current', true),
+    ]).then(([cRes, mRes]) => {
+      setCommittees(cRes.data || []);
+      const counts: Record<string, number> = {};
+      for (const m of (mRes.data || [])) {
+        counts[m.committee_id] = (counts[m.committee_id] || 0) + 1;
+      }
+      setMemberCounts(counts);
       setLoading(false);
     });
   }, []);
 
   if (loading) return <LoadingSpinner />;
 
-  const filtered = organizations.filter(o =>
-    o.name.toLowerCase().includes(search.toLowerCase()) ||
-    o.industry_sector?.toLowerCase().includes(search.toLowerCase())
+  const filtered = committees.filter(c =>
+    c.name_de?.toLowerCase().includes(search.toLowerCase()) ||
+    c.abbreviation?.toLowerCase().includes(search.toLowerCase())
   );
 
   return (
     <div className="p-6">
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold">Organizations ({filtered.length})</h1>
+        <div>
+          <h1 className="text-2xl font-bold">Parliamentary Committees & Organizations ({filtered.length})</h1>
+          <p className="text-sm text-slate-400 mt-1">From Swiss Parliament OData API — standing, special, and sub-committees</p>
+        </div>
         <input
           type="text"
-          placeholder="Search organizations..."
+          placeholder="Search committees..."
           value={search}
           onChange={e => setSearch(e.target.value)}
           className="px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg w-80"
@@ -1851,35 +1863,37 @@ function OrganizationsView() {
       </div>
 
       {filtered.length === 0 ? (
-        <div className="text-center py-12 text-slate-500">No organizations found</div>
+        <div className="text-center py-12 text-slate-500">No committees found</div>
       ) : (
         <div className="grid grid-cols-3 gap-4">
-          {filtered.map(org => (
+          {filtered.map(c => (
             <div
-              key={org.id}
-              className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden cursor-pointer hover:border-blue-700 hover:shadow-lg transition-all"
+              key={c.id}
+              className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden hover:border-blue-700 hover:shadow-lg transition-all"
             >
               <div className="bg-gradient-to-r from-cyan-900/50 to-blue-900/50 px-4 py-3">
-                <h3 className="font-semibold text-white">{org.name}</h3>
-                {org.organization_type && (
-                  <div className="text-xs text-slate-300 mt-1">{org.organization_type}</div>
-                )}
+                <h3 className="font-semibold text-white">{c.name_de}</h3>
+                <div className="flex items-center gap-2 mt-1">
+                  {c.abbreviation && (
+                    <span className="text-xs text-slate-300 bg-slate-800/50 px-1.5 py-0.5 rounded">{c.abbreviation}</span>
+                  )}
+                  <span className="text-xs text-slate-400">{c.chamber}</span>
+                </div>
               </div>
               <div className="p-4">
-                {org.description && (
-                  <p className="text-sm text-slate-400 mb-3 line-clamp-2">{org.description}</p>
-                )}
                 <div className="grid grid-cols-2 gap-2 text-xs">
-                  {org.industry_sector && (
-                    <div>
-                      <div className="text-slate-500">Sector</div>
-                      <div className="text-slate-300">{org.industry_sector}</div>
-                    </div>
-                  )}
-                  {org.headquarters_canton && (
-                    <div>
-                      <div className="text-slate-500">HQ Canton</div>
-                      <div className="text-slate-300">{org.headquarters_canton}</div>
+                  <div>
+                    <div className="text-slate-500">Type</div>
+                    <div className="text-slate-300 capitalize">{c.committee_type || 'standing'}</div>
+                  </div>
+                  <div>
+                    <div className="text-slate-500">Members</div>
+                    <div className="text-slate-300">{memberCounts[c.id] || 0}</div>
+                  </div>
+                  {c.policy_area && (
+                    <div className="col-span-2">
+                      <div className="text-slate-500">Policy Area</div>
+                      <div className="text-slate-300">{c.policy_area}</div>
                     </div>
                   )}
                 </div>

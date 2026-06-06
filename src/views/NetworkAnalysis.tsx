@@ -1,44 +1,43 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { Network, Users, Zap, GitBranch } from 'lucide-react';
+import { Network, Users, GitBranch } from 'lucide-react';
 
-interface NetworkLink {
-  politician_1: string;
-  politician_2: string;
-  votes_together: number;
-  aligned_votes: number;
-  alignment_percentage: number;
-  politician_1_party: string[];
-  politician_2_party: string[];
+interface SimilarityPair {
+  politician_a_id: string;
+  politician_b_id: string;
+  party_a: string;
+  party_b: string;
+  similarity_score: number;
+  votes_compared: number;
+  is_cross_party: boolean;
 }
 
-interface Coalition {
-  coalition_name: string;
+interface CommitteeNetwork {
+  committee_id: string;
+  committee_name: string;
   member_count: number;
-  avg_influence: number;
-  leadership_positions: string;
-  committee_positions: number;
-  avg_compensation: number;
+  parties: string[];
+  chamber: string;
 }
 
-interface NetworkHub {
+interface HubPolitician {
   id: string;
   full_name: string;
   party: string;
-  network_connections: number;
-  avg_alignment: number;
-  lobbying_contacts: number;
-  committee_membership_count: number;
+  canton: string;
   influence_score: number;
-  hub_type: string;
+  total_mandates: number;
+  committee_positions: number;
 }
 
+type TabId = 'coalitions' | 'hubs' | 'connections';
+
 export default function NetworkAnalysisView() {
-  const [links, setLinks] = useState<NetworkLink[]>([]);
-  const [coalitions, setCoalitions] = useState<Coalition[]>([]);
-  const [hubs, setHubs] = useState<NetworkHub[]>([]);
+  const [similarityPairs, setSimilarityPairs] = useState<SimilarityPair[]>([]);
+  const [committeeNetworks, setCommitteeNetworks] = useState<CommitteeNetwork[]>([]);
+  const [hubPoliticians, setHubPoliticians] = useState<HubPolitician[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'coalitions' | 'hubs' | 'connections'>('coalitions');
+  const [activeTab, setActiveTab] = useState<TabId>('coalitions');
 
   useEffect(() => {
     fetchNetworkData();
@@ -47,43 +46,60 @@ export default function NetworkAnalysisView() {
   async function fetchNetworkData() {
     setLoading(true);
     try {
-      const [linksRes, coalitionsRes, hubsRes] = await Promise.all([
+      const [simRes, committeeRes, hubRes] = await Promise.all([
         supabase
-          .from('politician_network_links')
+          .from('voting_similarity')
           .select('*')
-          .order('aligned_votes', { ascending: false })
-          .limit(50),
+          .order('similarity_score', { ascending: false })
+          .limit(100),
         supabase
-          .from('political_coalitions')
-          .select('*')
-          .order('member_count', { ascending: false }),
+          .from('committees')
+          .select('id, name_de, chamber, abbreviation'),
         supabase
-          .from('network_influence_hubs')
+          .from('politician_influence')
           .select('*')
-          .order('network_connections', { ascending: false })
-          .limit(40)
+          .gt('total_mandates', 0)
+          .order('influence_score', { ascending: false })
+          .limit(40),
       ]);
 
-      if (linksRes.data) setLinks(linksRes.data);
-      if (coalitionsRes.data) setCoalitions(coalitionsRes.data);
-      if (hubsRes.data) setHubs(hubsRes.data);
+      if (simRes.data) setSimilarityPairs(simRes.data);
+
+      if (committeeRes.data) {
+        // Enrich committees with member counts
+        const committeeIds = committeeRes.data.map(c => c.id);
+        const { data: memberships } = await supabase
+          .from('committee_memberships')
+          .select('committee_id, politician:politicians(party)')
+          .in('committee_id', committeeIds)
+          .eq('is_current', true);
+
+        const memberMap: Record<string, { count: number; parties: Set<string> }> = {};
+        for (const m of (memberships ?? [])) {
+          if (!memberMap[m.committee_id]) memberMap[m.committee_id] = { count: 0, parties: new Set() };
+          memberMap[m.committee_id].count++;
+          const party = (m.politician as unknown as Record<string, string>)?.party;
+          if (party) memberMap[m.committee_id].parties.add(party);
+        }
+
+        const networks: CommitteeNetwork[] = committeeRes.data
+          .map(c => ({
+            committee_id: c.id,
+            committee_name: c.name_de,
+            member_count: memberMap[c.id]?.count ?? 0,
+            parties: Array.from(memberMap[c.id]?.parties ?? []),
+            chamber: c.chamber,
+          }))
+          .filter(n => n.member_count > 0)
+          .sort((a, b) => b.member_count - a.member_count);
+        setCommitteeNetworks(networks);
+      }
+
+      if (hubRes.data) setHubPoliticians(hubRes.data);
     } catch (error) {
       console.error('Error fetching network data:', error);
     } finally {
       setLoading(false);
-    }
-  }
-
-  function getHubColor(type: string) {
-    switch (type) {
-      case 'MAJOR_HUB':
-        return 'bg-red-100 text-red-800 border-red-200';
-      case 'REGIONAL_HUB':
-        return 'bg-orange-100 text-orange-800 border-orange-200';
-      case 'SECTOR_HUB':
-        return 'bg-blue-100 text-blue-800 border-blue-200';
-      default:
-        return 'bg-gray-100 text-gray-800 border-gray-200';
     }
   }
 
@@ -95,242 +111,148 @@ export default function NetworkAnalysisView() {
     );
   }
 
+  const crossPartyPairs = similarityPairs.filter(p => p.is_cross_party);
+
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="border-b border-gray-200 pb-4">
-        <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-          <Network className="h-6 w-6 text-blue-600" />
-          Political Network Analysis
+    <div className="space-y-6 p-6">
+      <div className="border-b border-slate-700 pb-4">
+        <h1 className="text-2xl font-bold flex items-center gap-2">
+          <Network className="h-6 w-6 text-blue-400" />
+          Network Analysis
         </h1>
-        <p className="mt-1 text-sm text-gray-500">
-          Coalition mapping, influence hubs, and voting patterns
+        <p className="mt-1 text-sm text-slate-400">
+          Committee networks, influence hubs, and voting connections from Parliament data
         </p>
       </div>
 
-      {/* Summary Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-white border border-gray-200 rounded-lg p-4">
-          <div className="flex items-center">
-            <div className="flex-shrink-0 bg-blue-100 rounded-md p-3">
-              <Users className="h-6 w-6 text-blue-600" />
-            </div>
-            <div className="ml-4 flex-1">
-              <div className="text-sm text-gray-500">Political Parties</div>
-              <div className="text-2xl font-bold text-blue-600">{coalitions.length}</div>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white border border-gray-200 rounded-lg p-4">
-          <div className="flex items-center">
-            <div className="flex-shrink-0 bg-purple-100 rounded-md p-3">
-              <Network className="h-6 w-6 text-purple-600" />
-            </div>
-            <div className="ml-4 flex-1">
-              <div className="text-sm text-gray-500">Network Links</div>
-              <div className="text-2xl font-bold text-purple-600">{links.length}</div>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white border border-gray-200 rounded-lg p-4">
-          <div className="flex items-center">
-            <div className="flex-shrink-0 bg-green-100 rounded-md p-3">
-              <Zap className="h-6 w-6 text-green-600" />
-            </div>
-            <div className="ml-4 flex-1">
-              <div className="text-sm text-gray-500">Influence Hubs</div>
-              <div className="text-2xl font-bold text-green-600">{hubs.filter(h => h.hub_type === 'MAJOR_HUB').length}</div>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white border border-gray-200 rounded-lg p-4">
-          <div className="flex items-center">
-            <div className="flex-shrink-0 bg-orange-100 rounded-md p-3">
-              <GitBranch className="h-6 w-6 text-orange-600" />
-            </div>
-            <div className="ml-4 flex-1">
-              <div className="text-sm text-gray-500">Avg Cohesion</div>
-              <div className="text-2xl font-bold text-orange-600">
-                {links.length > 0 ? Math.round(links.reduce((sum, l) => sum + l.alignment_percentage, 0) / links.length) : 0}%
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
       {/* Tabs */}
-      <div className="border-b border-gray-200">
-        <nav className="-mb-px flex space-x-8">
+      <div className="border-b border-slate-700">
+        <nav className="-mb-px flex space-x-4">
           {[
-            { id: 'coalitions', label: 'Political Coalitions', icon: Users },
-            { id: 'hubs', label: 'Influence Hubs', icon: Zap },
-            { id: 'connections', label: 'Network Connections', icon: Network }
-          ].map((tab) => (
+            { id: 'coalitions' as TabId, label: 'Committee Networks', icon: GitBranch, count: committeeNetworks.length },
+            { id: 'hubs' as TabId, label: 'Influence Hubs', icon: Users, count: hubPoliticians.length },
+            { id: 'connections' as TabId, label: 'Voting Connections', icon: Network, count: similarityPairs.length },
+          ].map(tab => (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id as typeof activeTab)}
-              className={`${
+              onClick={() => setActiveTab(tab.id)}
+              className={`whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm flex items-center gap-2 transition ${
                 activeTab === tab.id
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2`}
+                  ? 'border-blue-500 text-blue-400'
+                  : 'border-transparent text-slate-500 hover:text-slate-300 hover:border-slate-600'
+              }`}
             >
               <tab.icon className="h-4 w-4" />
               {tab.label}
+              <span className="ml-1 bg-slate-800 text-slate-400 py-0.5 px-2 rounded-full text-xs">{tab.count}</span>
             </button>
           ))}
         </nav>
       </div>
 
-      {/* Coalitions */}
       {activeTab === 'coalitions' && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {coalitions.map((coalition) => (
-            <div key={coalition.coalition_name} className="bg-white border border-gray-200 rounded-lg p-6">
-              <div className="flex items-start justify-between mb-4">
-                <div>
-                  <h3 className="text-lg font-bold text-gray-900">{coalition.coalition_name}</h3>
-                  <p className="text-sm text-gray-600">{coalition.member_count} members</p>
-                </div>
-                <div className="text-right">
-                  <div className="text-2xl font-bold text-blue-600">{coalition.member_count}</div>
-                  <div className="text-xs text-gray-500">Seats</div>
-                </div>
+          {committeeNetworks.map(cn => (
+            <div key={cn.committee_id} className="bg-slate-900 border border-slate-700 rounded-lg p-4">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-sm font-medium truncate">{cn.committee_name}</h3>
+                <span className="text-xs bg-slate-800 px-2 py-1 rounded text-slate-400">{cn.chamber}</span>
               </div>
-
-              <div className="space-y-3">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600">Avg Influence</span>
-                  <span className="text-sm font-semibold text-gray-900">{coalition.avg_influence.toFixed(1)}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600">Committee Positions</span>
-                  <span className="text-sm font-semibold text-gray-900">{coalition.committee_positions}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600">Avg Compensation</span>
-                  <span className="text-sm font-semibold text-green-600">
-                    {coalition.avg_compensation ? `CHF ${Math.round(coalition.avg_compensation / 1000)}k` : '-'}
-                  </span>
-                </div>
+              <div className="text-2xl font-bold text-blue-400 mb-2">{cn.member_count}</div>
+              <p className="text-xs text-slate-500 mb-2">members across {cn.parties.length} parties</p>
+              <div className="flex flex-wrap gap-1">
+                {cn.parties.slice(0, 5).map(party => (
+                  <span key={party} className="px-1.5 py-0.5 bg-slate-800 text-slate-400 rounded text-xs">{party}</span>
+                ))}
+                {cn.parties.length > 5 && <span className="text-xs text-slate-500">+{cn.parties.length - 5}</span>}
               </div>
-
-              {coalition.leadership_positions && (
-                <div className="mt-4 pt-4 border-t border-gray-200">
-                  <p className="text-xs text-gray-600 mb-2">Leadership:</p>
-                  <p className="text-xs text-gray-900">{coalition.leadership_positions.substring(0, 60)}...</p>
-                </div>
-              )}
             </div>
           ))}
+          {committeeNetworks.length === 0 && (
+            <div className="col-span-3 p-8 text-center text-slate-500">No committee network data available</div>
+          )}
         </div>
       )}
 
-      {/* Influence Hubs */}
       {activeTab === 'hubs' && (
-        <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Politician</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Hub Type</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Connections</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Avg Alignment</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Committees</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Influence</th>
+        <div className="bg-slate-900 border border-slate-700 rounded-lg overflow-hidden">
+          <table className="w-full">
+            <thead className="bg-slate-800/50">
+              <tr className="border-b border-slate-700">
+                <th className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase">Politician</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase">Party</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase">Influence</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase">Mandates</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase">Committees</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-200">
-              {hubs.slice(0, 30).map((hub) => (
-                <tr key={hub.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm font-medium text-gray-900">{hub.full_name}</div>
-                    <div className="text-sm text-gray-500">{hub.party}</div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold border ${getHubColor(hub.hub_type)}`}>
-                      {hub.hub_type.replace('_', ' ')}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm font-semibold text-gray-900">{hub.network_connections}</div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center">
-                      <div className="w-12 bg-gray-200 rounded-full h-1 mr-2">
-                        <div
-                          className="bg-green-600 h-1 rounded-full"
-                          style={{ width: `${(hub.avg_alignment || 0)}%` }}
-                        ></div>
+            <tbody className="divide-y divide-slate-800">
+              {hubPoliticians.map(p => (
+                <tr key={p.id} className="hover:bg-slate-800/50">
+                  <td className="px-6 py-3 text-sm font-medium">{p.full_name}</td>
+                  <td className="px-6 py-3 text-sm text-slate-400">{p.party}</td>
+                  <td className="px-6 py-3 text-sm">
+                    <div className="flex items-center gap-2">
+                      <div className="w-16 bg-slate-700 rounded-full h-1.5">
+                        <div className="bg-blue-500 h-1.5 rounded-full" style={{ width: `${Math.min(100, p.influence_score)}%` }} />
                       </div>
-                      <span className="text-xs text-gray-600">{Math.round(hub.avg_alignment || 0)}%</span>
+                      <span className="text-xs text-blue-400">{p.influence_score}</span>
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {hub.committee_membership_count}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-blue-100 text-blue-800">
-                      {Math.round(hub.influence_score)}
-                    </span>
-                  </td>
+                  <td className="px-6 py-3 text-sm text-slate-400">{p.total_mandates}</td>
+                  <td className="px-6 py-3 text-sm text-slate-400">{p.committee_positions}</td>
                 </tr>
               ))}
+              {hubPoliticians.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="px-6 py-8 text-center text-slate-500">No influence data available</td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
       )}
 
-      {/* Network Connections */}
       {activeTab === 'connections' && (
-        <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Politician 1</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Politician 2</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Joint Votes</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Aligned</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Alignment %</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200">
-              {links.slice(0, 30).map((link, index) => (
-                <tr key={index} className="hover:bg-gray-50">
-                  <td className="px-6 py-4">
-                    <div className="text-sm font-medium text-gray-900">
-                      {link.politician_1_party?.[0] || 'Unknown'}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="text-sm font-medium text-gray-900">
-                      {link.politician_2_party?.[0] || 'Unknown'}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm font-semibold text-gray-900">{link.votes_together}</div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm font-semibold text-green-600">{link.aligned_votes}</div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center">
-                      <div className="w-16 bg-gray-200 rounded-full h-2 mr-2">
-                        <div
-                          className="bg-blue-600 h-2 rounded-full"
-                          style={{ width: `${link.alignment_percentage}%` }}
-                        ></div>
-                      </div>
-                      <span className="text-sm font-semibold text-gray-900">{link.alignment_percentage.toFixed(1)}%</span>
-                    </div>
-                  </td>
+        <div className="space-y-6">
+          <div className="bg-slate-900 border border-slate-700 rounded-lg overflow-hidden">
+            <div className="px-6 py-3 border-b border-slate-800">
+              <h3 className="text-sm font-semibold text-amber-400">Cross-Party Connections</h3>
+              <p className="text-xs text-slate-500">Politicians from different parties with high voting similarity</p>
+            </div>
+            <table className="w-full">
+              <thead className="bg-slate-800/50">
+                <tr className="border-b border-slate-700">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase">Party A</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase">Party B</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase">Similarity</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase">Votes Shared</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-slate-800">
+                {crossPartyPairs.slice(0, 30).map((pair, i) => (
+                  <tr key={i} className="hover:bg-slate-800/50">
+                    <td className="px-6 py-3 text-sm">{pair.party_a}</td>
+                    <td className="px-6 py-3 text-sm">{pair.party_b}</td>
+                    <td className="px-6 py-3 text-sm">
+                      <div className="flex items-center gap-2">
+                        <div className="w-16 bg-slate-700 rounded-full h-1.5">
+                          <div className="bg-amber-500 h-1.5 rounded-full" style={{ width: `${pair.similarity_score * 100}%` }} />
+                        </div>
+                        <span className="text-xs">{(pair.similarity_score * 100).toFixed(0)}%</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-3 text-sm text-slate-400">{pair.votes_compared}</td>
+                  </tr>
+                ))}
+                {crossPartyPairs.length === 0 && (
+                  <tr>
+                    <td colSpan={4} className="px-6 py-8 text-center text-slate-500">Not enough voting data for cross-party analysis</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </div>
