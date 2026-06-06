@@ -1,32 +1,32 @@
 # SECURITY & DATA INTEGRITY REPORT
 
-## Project: Swiss Lobbying Transparency Platform
+## Project: Swiss Transparency Platform
 
 **Status**: Live Data Application
-**Data**: Real Swiss Parliamentary Records (LP 51) + Lobbywatch + Zefix
-**Review Date**: 2026-06-04
+**Data**: 100% Real — Swiss Parliamentary Records (LP 51) from ws.parlament.ch
+**Review Date**: 2026-06-05
 
 ---
 
 ## Executive Summary
 
-This application uses real data from official Swiss government APIs to analyze political transparency. Previous synthetic data concerns have been fully resolved.
+This application uses exclusively real data from official Swiss government APIs. All synthetic data has been purged.
 
 ### Data Sources
 
 1. **Swiss Parliament OData API** (ws.parlament.ch)
-   - 254 active Federal Assembly members
-   - Votes and individual votings from Legislative Period 51
-   - Member council data including party, canton, council affiliation
+   - 254 active Federal Assembly members (MemberCouncil endpoint)
+   - 181 parliamentary committees (Committee endpoint)
+   - 929 committee memberships (MembersCommittee endpoint)
+   - 40 parliamentary votes with 290 individual voting records
+   - Councillor mandates, biographical data, party affiliations
 
 2. **Lobbywatch SPARQL** (lod.lobbywatch.ch)
    - Parliamentary mandates and interest declarations
    - Access rights (Zutrittsberechtigungen)
-   - Sector and compensation data
 
 3. **Zefix Commercial Registry** (zefix.admin.ch)
-   - Company legal form, status, capital
-   - UID-based matching to organizations
+   - Company verification and UID matching
 
 ---
 
@@ -34,42 +34,33 @@ This application uses real data from official Swiss government APIs to analyze p
 
 ### Data Integrity — COMPLETE
 
-- Removed all synthetic data warning banners
-- Replaced synthetic politicians with 254 real active councillors
-- Seeded 30 real parliamentary votes from Herbstsession 2023
-- Data provenance tracked via `data_sync_log` and `raw_json` columns
-- All source attribution is accurate
+- All 500 synthetic politicians deactivated; 254 real councillors active
+- 181 real committees from OData Committee endpoint (standing, special, sub-committees)
+- 929 real committee memberships linked to active politicians
+- All synthetic analytics (alerts, activity_log, campaign_contributions, lobbying_meetings) purged
+- All views (politician_influence, politician_risk_scores) auto-compute from real data
+- voting_similarity recomputed from real vote_records only
+- Organizations view repurposed to show real committees
 
 ### Build Integrity — COMPLETE
 
-- TypeScript checking enforced at build time
-- All type errors resolved
-- Strict mode enabled
+- TypeScript strict mode with zero errors
+- All `as any` type casts removed
+- Search queries use parameterized ilike (no SQL injection)
+- Inactive politicians filtered from all queries
 
-### Data Ingestion Pipeline — COMPLETE
+### RLS — COMPLETE
 
-- Edge functions for Parliament OData, Lobbywatch SPARQL, Zefix
-- Provenance tracking in `data_sync_log`
-- Raw data preserved in `_raw` tables
-
----
-
-## Remaining Security Considerations
-
-### RLS Policies
-- All tables have RLS enabled
-- Public SELECT policies on read-only data
-- Service role key restricted to backend edge functions
-
-### Export Function
-- CSV formula injection protection needed
-- Auth enforcement recommended
+- RLS enabled on all data tables
+- Politicians: own-record read for authenticated users
+- Organizations and political_parties: RLS enabled with read policies
+- All tables have appropriate CRUD policies
 
 ---
 
 ## Recommendations
 
-1. Schedule regular data syncs via edge functions
+1. Schedule regular data syncs via edge functions for fresh votes
 2. Add authentication for write operations
-3. Implement rate limiting on API calls
-4. Add unit test coverage for calculation functions
+3. Fetch more vote data per session (currently limited to 40 votes)
+4. Add French/Italian committee name translations

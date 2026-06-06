@@ -1,41 +1,46 @@
-# REMEDIATION ROADMAP
+# Remediation Roadmap
 
 ## Completed Workstreams
 
 ### Data Integrity — COMPLETE
-- Replaced synthetic politician data with 254 real active Federal Assembly members
-- Seeded 30 real parliamentary votes from LP 51 (Herbstsession 2023)
-- Removed all synthetic data warning banners and disclaimers
-- Data provenance tracked via `data_sync_log` and `parliament_members_raw`
+
+- 254 real active Federal Assembly members from Parliament OData MemberCouncil
+- 181 real committees from Parliament OData Committee endpoint
+- 929 real committee memberships from MembersCommittee endpoint
+- 40 parliamentary votes with 290 individual voting records
+- All synthetic data purged: campaign_contributions, alerts, activity_log, lobbying_meetings, organizations
+- Inactive politicians (246 synthetic) deactivated and filtered from all queries
+- voting_similarity recomputed from real vote_records only
+- Views (politician_influence, politician_risk_scores, mandate_vote_alignment) auto-compute from real data
 
 ### Build Integrity — COMPLETE
-- TypeScript checking enforced at build time
-- All type errors resolved
-- ESLint configured and passing
+
+- TypeScript strict mode with zero errors
+- All type casts removed
+- Search queries parameterized against injection
+- Build passes clean
 
 ### Architecture — COMPLETE
-- Monolith split into modular views
-- Shared types in `src/types/`
-- Pure calculation functions extracted to `src/lib/calculations.ts`
+
+- Modular views in src/views/
+- Shared types in src/types/
+- Pure calculation functions in src/lib/calculations.ts
 - Test coverage via Vitest
+- All views query real data tables with graceful empty states
 
 ### Data Ingestion Pipeline — COMPLETE
+
 - Edge functions: sync-parliament-votes, sync-lobbywatch, sync-zefix
 - Provenance tracking in data_sync_log
 - Raw data tables for all sources
 - Data Ingestion UI view
 
-### Documentation — COMPLETE
-- README updated to reflect real data sources
-- Environment template provided
-- Architecture documented
-
 ---
 
 ## Remaining Improvements
 
-1. Schedule regular data syncs for fresh parliamentary data
-2. Add authentication for data modification operations
+1. Fetch more parliamentary votes (currently 40 of thousands available)
+2. Add French/Italian translations for committee names
 3. Implement CSV export sanitization
-4. Add more comprehensive test coverage
-5. Support multiple languages (DE/FR/IT)
+4. Add authentication for data modification operations
+5. Schedule automated data syncs for fresh parliamentary data
